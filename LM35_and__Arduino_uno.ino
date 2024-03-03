@@ -3,49 +3,54 @@ Name : Arundev Annath
 Date : 03/03/2024
 Objective : To connect a LM35 temperature sensor with an arduino UNO
 */
+#include <TimerOne.h>
 
+const int temperaturePin = A0;  // Analog pin for LM35 temperature sensor
+const int ledPin = 13;          // Onboard LED pin
 
-const int lm35Pin = A0;  // LM35 temperature sensor connected to Analog pin A0
-const int ledPin = 13;   // Onboard LED connected to digital pin 13
+const int belowThresholdBlinkInterval = 250;  // Blink interval when temperature is below 30 degrees Celsius
+const int aboveThresholdBlinkInterval = 500;  // Blink interval when temperature is above 30 degrees Celsius
 
-unsigned long previousMillis = 0;
-const long intervalLowTemp = 250;   // Blink interval for temperature below 30°C
-const long intervalHighTemp = 500;  // Blink interval for temperature above 30°C
+const int temperatureThreshold = 30;  // Temperature threshold in degrees Celsius
 
 void setup() {
-  pinMode(lm35Pin, INPUT);
   pinMode(ledPin, OUTPUT);
+  Timer1.initialize(1000);  // Initialize Timer1 with a 1s (1000ms) period
+  Timer1.attachInterrupt(timerCallback);  // Attach the timer callback function
+  Serial.begin(9600);
 }
 
 void loop() {
-  // Read temperature from LM35 sensor
   int temperature = readTemperature();
-
-  // Check temperature and control LED blink accordingly
-  if (temperature < 30) {
-    blinkLED(intervalLowTemp);
-  } else {
-    blinkLED(intervalHighTemp);
+  
+  if (temperature < temperatureThreshold)
+  {
+    Timer1.setPeriod(belowThresholdBlinkInterval * 1000);  // Set the timer period for below threshold
+  } 
+  else 
+  {
+    Timer1.setPeriod(aboveThresholdBlinkInterval * 1000);  // Set the timer period for above threshold
   }
+
+  delay(100);  // Add a small delay to stabilize the temperature readings
+}
+
+void timerCallback() {
+  static bool ledState = LOW;
+  digitalWrite(ledPin, ledState);
+  ledState = !ledState;
 }
 
 int readTemperature() {
-  // Read analog value from LM35 and convert it to Celsius
-  int sensorValue = analogRead(lm35Pin);
-  float voltage = sensorValue * (5.0 / 1023.0);
-  float temperatureC = (voltage - 0.5) * 100.0;
+  // Read the analog value from LM35 temperature sensor
+  int sensorValue = analogRead(temperaturePin);
 
-  return (int)temperatureC;
-}
+  // Convert the analog value to temperature in degrees Celsius
+  float temperatureCelsius = (sensorValue / 1024.0) * 500.0;
 
-void blinkLED(long interval) {
-  unsigned long currentMillis = millis();
+  Serial.print("Temperature: ");
+  Serial.print(temperatureCelsius);
+  Serial.println(" °C");
 
-  if (currentMillis - previousMillis >= interval) {
-    // Save the last time we blinked the LED
-    previousMillis = currentMillis;
-
-    // Toggle the LED state
-    digitalWrite(ledPin, !digitalRead(ledPin));
-  }
+  return temperatureCelsius;
 }
